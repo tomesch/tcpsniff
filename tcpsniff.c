@@ -39,6 +39,11 @@ int main(int argc, char *argv[]){
 		exit(1);
 	}
 
+	pcap_set_snaplen(capture_handle,65535);
+	if(pflag==1){
+		pcap_set_promisc(capture_handle, 1);
+	}
+
 	if((pcap_activate(capture_handle) == PCAP_ERROR_NO_SUCH_DEVICE)){
 		printf("Device (%s) does not exist\n",iflag);
 		printf("Please use one of the following devices : \n");
@@ -49,7 +54,7 @@ int main(int argc, char *argv[]){
     return 0;
 }
 
-void got_packet(u_char *user, struct pcap_pkthdr *phrd, u_char *pdata){
+void got_packet(u_char *user, const struct pcap_pkthdr *phrd, const u_char *pdata){
 	struct timeval tv = phrd->ts; 
 	struct tm* ptm; 
 	char time_string[40]; 
@@ -58,7 +63,8 @@ void got_packet(u_char *user, struct pcap_pkthdr *phrd, u_char *pdata){
 	ptm = (struct tm*) localtime (&tv.tv_sec); 
 	strftime (time_string, sizeof (time_string), "%H:%M:%S", ptm); 
 	milliseconds = tv.tv_usec; 
-	printf ("%s.%03ld\n", time_string, milliseconds); 
+	//printf ("%s.%03ld\n", time_string, milliseconds); 
+	printf("%s\n",pdata);
 }
 
 void print_all_devices(){
