@@ -41,7 +41,7 @@ int main(int argc, char *argv[]){
 
 	pcap_set_snaplen(capture_handle,65535);
 	if(pflag==1){
-		pcap_set_promisc(capture_handle, 1);
+		//pcap_set_promisc(capture_handle, 1);
 	}
 
 	if((pcap_activate(capture_handle) == PCAP_ERROR_NO_SUCH_DEVICE)){
@@ -50,11 +50,16 @@ int main(int argc, char *argv[]){
 		print_all_devices();
 	}
 
-	pcap_loop(capture_handle, 0, (pcap_handler)got_packet, NULL);
+    if((pcap_loop(capture_handle, 0, (pcap_handler)got_packet, NULL))==-1){
+    	char *prefix = "Error in pcap_loop: ";
+    	pcap_perror(capture_handle, prefix);
+    }
+
+    pcap_close(capture_handle);
     return 0;
 }
 
-void got_packet(u_char *user, const struct pcap_pkthdr *phrd, const u_char *pdata){
+void got_packet(u_char *user, const struct pcap_pkthdr *phrd, const u_char *packet){
 	struct timeval tv = phrd->ts; 
 	struct tm* ptm; 
 	char time_string[40]; 
@@ -63,8 +68,29 @@ void got_packet(u_char *user, const struct pcap_pkthdr *phrd, const u_char *pdat
 	ptm = (struct tm*) localtime (&tv.tv_sec); 
 	strftime (time_string, sizeof (time_string), "%H:%M:%S", ptm); 
 	milliseconds = tv.tv_usec; 
-	//printf ("%s.%03ld\n", time_string, milliseconds); 
-	printf("%s\n",pdata);
+	//printf("%s.%03ld\n", time_string, milliseconds); 
+	//printf("%s\n",pdata);
+
+	struct ether_header *ethernet; 
+	ethernet = (struct ether_header*)packet;
+
+	u_char *ptr;
+	int i;
+	ptr = ethernet->ether_dhost;
+    i = ETHER_ADDR_LEN;
+    printf(" Destination Address:  ");
+    do{
+        printf("%s%x",(i == ETHER_ADDR_LEN) ? " " : ":",*ptr++);
+    }while(--i>0);
+    printf("\n");
+
+    ptr = ethernet->ether_shost;
+    i = ETHER_ADDR_LEN;
+    printf(" Source Address:  ");
+    do{
+        printf("%s%x",(i == ETHER_ADDR_LEN) ? " " : ":",*ptr++);
+    }while(--i>0);
+    printf("\n");
 }
 
 void print_all_devices(){
