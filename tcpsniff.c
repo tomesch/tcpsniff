@@ -2,8 +2,8 @@
 
 int main(int argc, char *argv[]){
 	char * iflag=NULL;
-	char * oflag;
-	char * fflag;
+	char * oflag=NULL;
+	char * fflag=NULL;
 	int vflag, pflag=0;
 	int c;
 
@@ -38,8 +38,8 @@ int main(int argc, char *argv[]){
 			print_all_devices();
 			exit(1);
 		}
-	}	
-
+	}
+			
 	if((capture_handle = pcap_create(iflag, error_buffer))==NULL){
 		fprintf(stderr,"Error in pcap_create: %s\n", error_buffer);
 		exit(1);
@@ -56,10 +56,31 @@ int main(int argc, char *argv[]){
 		print_all_devices();
 		exit(0);
 	}
+	
+	if(fflag!=NULL){
+		struct bpf_program fp;
+		bpf_u_int32 netmask;
+		bpf_u_int32 network;
+
+		if(pcap_lookupnet(iflag,&network,&netmask,error_buffer)<0){
+			fprintf(stderr,"Error in pcap_lookupnet: %s\n", error_buffer);
+			exit(1);	
+		}	
+		if((pcap_compile(capture_handle,&fp, fflag,0,netmask))<0){
+			char *prefix = "Error in pcap_compile";
+			pcap_perror(capture_handle, prefix);
+			exit(1);
+		}
+		if(pcap_setfilter(capture_handle,&fp)<0){
+			char *prefix = "Error in pcap_setfilter";
+			pcap_perror(capture_handle, prefix);
+			exit(1);
+		}	
+	}
 
 	printf("listening on %s, capture size %d bytes\n",iflag,CAPTURESIZE);
 	if((pcap_loop(capture_handle, 0, (pcap_handler)got_packet, NULL))==-1){
-		char *prefix = "Error in pcap_loop: ";
+		char *prefix = "Error in pcap_loop";
 		pcap_perror(capture_handle, prefix);
 		printf("Error in loop\n");
 	}
