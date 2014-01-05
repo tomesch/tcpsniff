@@ -162,7 +162,7 @@ void print_header_tcp(const u_char *packet){
 }
 void print_header_bootp(const u_char *packet){
 	char magic_cookie[4] = VM_RFC1048;	
-	printf("|----> BOOTP ");
+	printf("|----> BOOTP\n");
 	struct bootp *bootp;
 	struct vend *vendor;
 	bootp = (struct bootp*) packet;
@@ -174,8 +174,72 @@ void print_header_bootp(const u_char *packet){
 
 }
 void print_header_dns(const u_char *packet){
-	printf("|----> DNS\n");
+	struct dnshdr *dns;
+	dns = (struct dnshdr*) packet;
+
+ 	char flags[100]; 
+	char * qr;
+	char opcode;
+	char * opcode_s;
+	// qr
+	if((dns->flags & (0x8000)) != 0){
+		qr = "response";
+	}
+	else{
+		qr = "query";
+	}
+	// opcode
+	opcode = ((dns->flags & 0x001E) >> 1);
+	switch(opcode){
+		case 0:
+			opcode_s = "Standard query";
+			break;	
+		case 1:
+			opcode_s = "Inverse query";
+			break;
+		case 2:
+			opcode_s = "Server status request";
+			break;
+		case 4:
+			opcode_s = "Notify";
+			break;
+		case 5:
+			opcode_s = "Update";
+			break;
+		default:
+			opcode_s = "";	
+	}	
+
+	// flags
+	strcpy(flags,"");
+	if((dns->flags & (0x400)) != 0){
+		strcat(flags,"AA, ");
+	}
+	if((dns->flags & (0x200)) != 0){
+		strcat(flags,"TC, ");
+	}	
+	if((dns->flags & (0x100)) != 0){
+		strcat(flags,"RD, ");
+	}
+	if((dns->flags & (0x80)) != 0){
+		strcat(flags,"RA, ");
+	}
+	if((dns->flags & (0x40)) != 0){
+		strcat(flags,"Z, ");
+	}
+	if((dns->flags & (0x20)) != 0){
+		strcat(flags,"AD, ");
+	}	
+	if((dns->flags & (0x10)) != 0){
+		strcat(flags,"CD, ");
+	}
+	if(strlen(flags) > 2){
+		flags[strlen(flags)-2] = '\0';	
+	}
+
+	printf("|----> DNS %s (%s), Flags : [%s]\n",qr,opcode_s,flags);
 }
+
 void print_header_udp(const u_char *packet){
 	printf("|---> UDP ");
 	struct udphdr *udp;
@@ -241,11 +305,13 @@ void print_header_arp(const u_char *packet){
 	hl = arp->ar_hln;
 	pl = arp->ar_pln;
 	
+	const u_char * tpa = (const u_char *) packet+sizeof(struct arphdr);
+
 	switch(pl){
 		case 4:
 			dstip = malloc(4*sizeof(u_char));
 			srcip = malloc(4*sizeof(u_char));
-			strncpy(dstip,arp->ar_op+sizeof(u_short)+(2*hl*sizeof(u_char))+pl*sizeof(u_char),4*sizeof(u_char));
+			strncpy(dstip, tpa, pl);
 			break;
 		case 16:
 			dstip = malloc(16*sizeof(u_char));
