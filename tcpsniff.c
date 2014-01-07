@@ -31,8 +31,9 @@ int main(int argc, char *argv[]){
 	
 	char error_buffer[PCAP_ERRBUF_SIZE];
 	pcap_t * capture_handle;
-
-	if(iflag==NULL){
+	
+	if(iflag==NULL){ // if no device is specified
+		// looking for default device
 		if ((iflag = pcap_lookupdev(error_buffer))==NULL) {
 			fprintf(stderr, "Couldn't find default device: %s\n", error_buffer);
 			print_all_devices();
@@ -46,7 +47,8 @@ int main(int argc, char *argv[]){
 	}
 
 	pcap_set_snaplen(capture_handle,CAPTURESIZE);
-	if(pflag==1){
+
+	if(pflag==1){ // set the device to promiscuous mode
 		pcap_set_promisc(capture_handle, 1);
 	}
 
@@ -57,7 +59,7 @@ int main(int argc, char *argv[]){
 		exit(0);
 	}
 	
-	if(fflag!=NULL){
+	if(fflag!=NULL){ // find netmask, compile BPF and apply it
 		struct bpf_program fp;
 		bpf_u_int32 netmask;
 		bpf_u_int32 network;
@@ -79,6 +81,7 @@ int main(int argc, char *argv[]){
 	}
 
 	printf("listening on %s, capture size %d bytes\n",iflag,CAPTURESIZE);
+
 	if((pcap_loop(capture_handle, 0, (pcap_handler)got_packet, NULL))==-1){
 		char *prefix = "Error in pcap_loop";
 		pcap_perror(capture_handle, prefix);
@@ -138,43 +141,45 @@ void print_header_tcp(const u_char *packet){
 	printf("%d > %d, Flags : [%s] \n",ntohs(tcp->source), ntohs(tcp->dest),flags);
 
 	switch(ntohs(tcp->source)){
-		case 80:
+		case HTTPPORT:
 			print_header_http(packet);
 			break;
-		case 443:
+		case HTTPSPORT:
 			print_header_https(packet);
 			break;
-		case 20:
+		case FTPDATAPORT:
 			print_header_ftp(packet);
 			break;
-		case 21:
+		case FTPCONTROLPORT:
 			print_header_ftp(packet);
 			break;
-		case 23:
+		case TELNETPORT:
 			print_header_telnet(packet);
 			break;
-		case 25:
+		case SMTPPORT:
 			print_header_smtp(packet);
 			break;	
 		default:
-			switch(ntohs(tcp->dest)){
-				case 80:
+			switch(ntohs(tcp->dest)){	
+				case HTTPPORT:
 					print_header_http(packet);
 					break;
-				case 443:
+				case HTTPSPORT:
 					print_header_https(packet);
 					break;
-				case 20:
+				case FTPDATAPORT:
 					print_header_ftp(packet);
 					break;
-				case 21:
+				case FTPCONTROLPORT:
 					print_header_ftp(packet);
 					break;
-				case 23:
+				case TELNETPORT:
 					print_header_telnet(packet);
 					break;
-				case 25:
+				case SMTPPORT:
 					print_header_smtp(packet);
+					break;	
+		
 					break;	
 				default:
 					break;
@@ -268,24 +273,24 @@ void print_header_udp(const u_char *packet){
 	printf("%d > %d\n",ntohs(udp->source),ntohs(udp->dest));
 
 	switch(ntohs(udp->source)){
-		case 67:
+		case BOOTPSERVERPORT:
 			print_header_bootp((packet+sizeof(struct udphdr)));
 			break;
-		case 68:
+		case BOOTPCLIENTPORT:
 			print_header_bootp((packet+sizeof(struct udphdr)));
 			break;
-		case 53:
+		case DNSPORT:
 			print_header_dns((packet+sizeof(struct udphdr)));
 			break;
 		default:
 			switch(ntohs(udp->dest)){
-				case 67:
+				case BOOTPSERVERPORT:
 					print_header_bootp((packet+sizeof(struct udphdr)));
 					break;
-				case 68:
+				case BOOTPCLIENTPORT:
 					print_header_bootp((packet+sizeof(struct udphdr)));
 					break;
-				case 53:
+				case DNSPORT:
 					print_header_dns((packet+sizeof(struct udphdr)));
 					break;	
 				default:
