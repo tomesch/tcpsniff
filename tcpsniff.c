@@ -15,7 +15,7 @@ int main(int argc, char *argv[]){
 			case 'i' : // interface to listen on
 				iflag = strdup(optarg);
 				break;
-			case 'o' : // log file
+			case 'o' : // offline mode
 				oflag = strdup(optarg);
 				break;
 			case 'f' : // BPF filer
@@ -32,55 +32,63 @@ int main(int argc, char *argv[]){
 	char error_buffer[PCAP_ERRBUF_SIZE];
 	pcap_t * capture_handle;
 	
-	if(iflag==NULL){ // if no device is specified
-		// looking for default device
-		if ((iflag = pcap_lookupdev(error_buffer))==NULL) {
-			fprintf(stderr, "Couldn't find default device: %s\n", error_buffer);
+	if(oflag==NULL){ // live mode
+		if(iflag==NULL){ // if no device is specified
+			// looking for default device
+			if ((iflag = pcap_lookupdev(error_buffer))==NULL) {
+				fprintf(stderr, "Couldn't find default device: %s\n", error_buffer);
+				print_all_devices();
+				exit(1);
+			}
+		}
+				
+		if((capture_handle = pcap_create(iflag, error_buffer))==NULL){
+			fprintf(stderr,"Error in pcap_create: %s\n", error_buffer);
+			exit(1);
+		}
+
+		pcap_set_snaplen(capture_handle,CAPTURESIZE);
+
+		if(pflag==1){ // set the device to promiscuous mode
+			pcap_set_promisc(capture_handle, 1);
+		}
+
+		if((pcap_activate(capture_handle) == PCAP_ERROR_NO_SUCH_DEVICE)){
+			printf("Device (%s) does not exist\n",iflag);
+			printf("The following devices are available : \n");
 			print_all_devices();
-			exit(1);
+			exit(0);
 		}
-	}
-			
-	if((capture_handle = pcap_create(iflag, error_buffer))==NULL){
-		fprintf(stderr,"Error in pcap_create: %s\n", error_buffer);
-		exit(1);
-	}
+		
+		if(fflag!=NULL){ // find netmask, compile BPF and apply it
+			struct bpf_program fp;
+			bpf_u_int32 netmask;
+			bpf_u_int32 network;
 
-	pcap_set_snaplen(capture_handle,CAPTURESIZE);
-
-	if(pflag==1){ // set the device to promiscuous mode
-		pcap_set_promisc(capture_handle, 1);
-	}
-
-	if((pcap_activate(capture_handle) == PCAP_ERROR_NO_SUCH_DEVICE)){
-		printf("Device (%s) does not exist\n",iflag);
-		printf("The following devices are available : \n");
-		print_all_devices();
-		exit(0);
-	}
-	
-	if(fflag!=NULL){ // find netmask, compile BPF and apply it
-		struct bpf_program fp;
-		bpf_u_int32 netmask;
-		bpf_u_int32 network;
-
-		if(pcap_lookupnet(iflag,&network,&netmask,error_buffer)<0){
-			fprintf(stderr,"Error in pcap_lookupnet: %s\n", error_buffer);
-			exit(1);	
-		}	
-		if((pcap_compile(capture_handle,&fp, fflag,0,netmask))<0){
-			char *prefix = "Error in pcap_compile";
-			pcap_perror(capture_handle, prefix);
-			exit(1);
+			if(pcap_lookupnet(iflag,&network,&netmask,error_buffer)<0){
+				fprintf(stderr,"Error in pcap_lookupnet: %s\n", error_buffer);
+				exit(1);	
+			}	
+			if((pcap_compile(capture_handle,&fp, fflag,0,netmask))<0){
+				char *prefix = "Error in pcap_compile";
+				pcap_perror(capture_handle, prefix);
+				exit(1);
+			}
+			if(pcap_setfilter(capture_handle,&fp)<0){
+				char *prefix = "Error in pcap_setfilter";
+				pcap_perror(capture_handle, prefix);
+				exit(1);
+			}	
 		}
-		if(pcap_setfilter(capture_handle,&fp)<0){
-			char *prefix = "Error in pcap_setfilter";
-			pcap_perror(capture_handle, prefix);
+
+		printf("listening on %s, capture size %d bytes\n",iflag,CAPTURESIZE);
+	}
+	else{ // offline mode
+		if((capture_handle = pcap_open_offline(oflag,error_buffer))==NULL){
+			fprintf(stderr,"%s\n",error_buffer);
 			exit(1);
 		}	
 	}
-
-	printf("listening on %s, capture size %d bytes\n",iflag,CAPTURESIZE);
 
 	if((pcap_loop(capture_handle, 0, (pcap_handler)got_packet, NULL))==-1){
 		char *prefix = "Error in pcap_loop";
