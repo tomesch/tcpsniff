@@ -207,71 +207,73 @@ void print_header_bootp(const u_char *packet){
 	}
 
 }
+void get_flags_dns(uint16_t flags_i, char** qr, char ** opcode, char ** flags){
+	// qr
+	if((flags_i & (0x8000)) != 0){
+		*qr = "response";
+	}
+	else{
+		*qr = "query";
+	}
+	// opcode
+	char opcd = ((flags_i & 0x001E) >> 1);
+	switch(opcd){
+		case 0:
+			*opcode = "Standard query";
+			break;	
+		case 1:
+			*opcode = "Inverse query";
+			break;
+		case 2:
+			*opcode = "Server status request";
+			break;
+		case 4:
+			*opcode = "Notify";
+			break;
+		case 5:
+			*opcode = "Update";
+			break;
+		default:
+			*opcode = "";	
+	}	
+
+	//flags
+ 	char tmp[100]; 
+	strcpy(tmp,"");
+	if((flags_i & (0x400)) != 0){
+		strcat(tmp,"AA, ");
+	}
+	if((flags_i & (0x200)) != 0){
+		strcat(tmp,"TC, ");
+	}	
+	if((flags_i & (0x100)) != 0){
+		strcat(tmp,"RD, ");
+	}
+	if((flags_i & (0x80)) != 0){
+		strcat(tmp,"RA, ");
+	}
+	if((flags_i & (0x40)) != 0){
+		strcat(tmp,"Z, ");
+	}
+	if((flags_i & (0x20)) != 0){
+		strcat(tmp,"AD, ");
+	}	
+	if((flags_i & (0x10)) != 0){
+		strcat(tmp,"CD, ");
+	}
+	if(strlen(tmp) > 2){
+		tmp[strlen(tmp)-2] = '\0';	
+	}
+	*flags = tmp;
+}
 void print_header_dns(const u_char *packet){
 	struct dnshdr *dns;
 	dns = (struct dnshdr*) packet;
-
- 	char flags[100]; 
 	char * qr;
-	char opcode;
-	char * opcode_s;
-	// qr
-	if((dns->flags & (0x8000)) != 0){
-		qr = "response";
-	}
-	else{
-		qr = "query";
-	}
-	// opcode
-	opcode = ((dns->flags & 0x001E) >> 1);
-	switch(opcode){
-		case 0:
-			opcode_s = "Standard query";
-			break;	
-		case 1:
-			opcode_s = "Inverse query";
-			break;
-		case 2:
-			opcode_s = "Server status request";
-			break;
-		case 4:
-			opcode_s = "Notify";
-			break;
-		case 5:
-			opcode_s = "Update";
-			break;
-		default:
-			opcode_s = "";	
-	}	
-
-	// flags
-	strcpy(flags,"");
-	if((dns->flags & (0x400)) != 0){
-		strcat(flags,"AA, ");
-	}
-	if((dns->flags & (0x200)) != 0){
-		strcat(flags,"TC, ");
-	}	
-	if((dns->flags & (0x100)) != 0){
-		strcat(flags,"RD, ");
-	}
-	if((dns->flags & (0x80)) != 0){
-		strcat(flags,"RA, ");
-	}
-	if((dns->flags & (0x40)) != 0){
-		strcat(flags,"Z, ");
-	}
-	if((dns->flags & (0x20)) != 0){
-		strcat(flags,"AD, ");
-	}	
-	if((dns->flags & (0x10)) != 0){
-		strcat(flags,"CD, ");
-	}
-	if(strlen(flags) > 2){
-		flags[strlen(flags)-2] = '\0';	
-	}
-
-	printf("|----> DNS %s (%s), Flags : [%s]\n",qr,opcode_s,flags);
+	char * opcode;
+	char * flags;
+	get_flags_dns(dns->flags,&qr,&opcode,&flags);
+	printf("|----> DNS %s (%s), Flags : [%s]\n",qr,opcode,flags);
 }
 
 void print_header_udp(const u_char *packet){
