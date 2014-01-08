@@ -115,7 +115,7 @@ void print_header_ftp(const u_char *packet){
 void print_header_smtp(const u_char *packet){
 	printf("|----> SMTP\n");
 }
-char * get_tcp_flags(struct tcphdr *tcp){
+void get_flags_tcp(struct tcphdr *tcp, char **flags){
 	char str[100];
 	strcpy(str,"");
 	if(tcp->fin==1){
@@ -136,16 +136,18 @@ char * get_tcp_flags(struct tcphdr *tcp){
 	if(tcp->urg==1){
 		strcat(str,"URG, ");
 	}
-	return strdup(str);
+	if(strlen(str) > 2){
+		str[strlen(str)-2] = '\0';	
+	}
+	*flags = str;
 }
 void print_header_tcp(const u_char *packet){
 	printf("|---> TCP ");
 	struct tcphdr *tcp;
 	tcp = (struct tcphdr*)packet;
-	char * flags = get_tcp_flags(tcp);
-	if(strlen(flags) > 2){
-		flags[strlen(flags)-2] = '\0';	
-	}
+	char * flags;
+	get_flags_tcp(tcp,&flags);
+	
 	printf("%d > %d, Flags : [%s] \n",ntohs(tcp->source), ntohs(tcp->dest),flags);
 
 	switch(ntohs(tcp->source)){
@@ -187,8 +189,6 @@ void print_header_tcp(const u_char *packet){
 				case SMTPPORT:
 					print_header_smtp(packet);
 					break;	
-		
-					break;	
 				default:
 					break;
 			}
@@ -203,7 +203,8 @@ void print_header_bootp(const u_char *packet){
 	vendor = (struct vend*) bootp->bp_vend;
 
 	if(strncmp(vendor->v_magic,magic_cookie,4)==0){
-		// Vendor specific options available
+		// Vendor specific options
+		
 	}
 
 }
