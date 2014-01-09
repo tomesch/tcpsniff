@@ -1,10 +1,12 @@
 #include "tcpsniff.h"
 
+int vflag = 1;
+
 int main(int argc, char *argv[]){
 	char * iflag=NULL;
 	char * oflag=NULL;
 	char * fflag=NULL;
-	int vflag, pflag=0;
+	int pflag=0;
 	int c;
 
 	while ((c = getopt (argc, argv, "i:o:f:v:p")) != -1){
@@ -28,10 +30,10 @@ int main(int argc, char *argv[]){
 				break;
 		}
 	}
-	
+
 	char error_buffer[PCAP_ERRBUF_SIZE];
 	pcap_t * capture_handle;
-	
+
 	if(oflag==NULL){ // live mode
 		if(iflag==NULL){ // if no device is specified
 			// looking for default device
@@ -41,7 +43,7 @@ int main(int argc, char *argv[]){
 				exit(1);
 			}
 		}
-				
+
 		if((capture_handle = pcap_create(iflag, error_buffer))==NULL){
 			fprintf(stderr,"Error in pcap_create: %s\n", error_buffer);
 			exit(1);
@@ -97,7 +99,7 @@ int main(int argc, char *argv[]){
 	}
 
 	pcap_close(capture_handle);
-    	return 0;
+	return 0;
 }
 
 void print_header_telnet(const u_char *packet){
@@ -105,7 +107,6 @@ void print_header_telnet(const u_char *packet){
 }
 void print_header_http(const u_char *packet){
 	printf("|----> HTTP\n");
-	
 }
 void print_header_https(const u_char *packet){
 	printf("|----> HTTPS\n");
@@ -143,13 +144,20 @@ void get_flags_tcp(struct tcphdr *tcp, char **flags){
 	*flags = str;
 }
 void print_header_tcp(const u_char *packet){
-	printf("|---> TCP ");
 	struct tcphdr *tcp;
 	tcp = (struct tcphdr*)packet;
 	char * flags;
 	get_flags_tcp(tcp,&flags);
-	
-	printf("%d > %d, Flags : [%s] \n",ntohs(tcp->source), ntohs(tcp->dest),flags);
+
+	if(vflag==1){
+		printf("|---> TCP %d > %d\n",ntohs(tcp->source), ntohs(tcp->dest));
+	}
+	if(vflag==2){	
+		printf("|---> TCP %d > %d, Flags: [%s] \n",ntohs(tcp->source), ntohs(tcp->dest),flags);
+	}
+	if(vflag==3){
+		printf("|---> TCP %d > %d, Flags: [%s], Seq number: %d, Ack number: %d ,Window size: %d, Checksum: 0x%x\n",ntohs(tcp->source), ntohs(tcp->dest),flags,ntohs(tcp->seq),ntohs(tcp->ack_seq),ntohs(tcp->window),ntohs(tcp->check));
+	}
 
 	switch(ntohs(tcp->source)){
 		case HTTPPORT:
@@ -196,26 +204,26 @@ void print_header_tcp(const u_char *packet){
 	}
 }
 void printAscii(u_char *packet, int length){
-    
-	/*int i;
-    int rank =0;
-    for(i=0;i< length;i++, rank++){
-        if(isprint(packet[i])){
-            printf("%c", (packet[i]));
-        }
-        else if(packet[i] == '\n'){
-            printf("%c", (packet[i]));
-            rank=0;
-        }
-        else if(packet[i] == '\r'){
-            rank=0;
-        }
-        else
-            printf(".");
-        if(rank%64==63)
-            printf("\n");
-    }
-    printf("\n");*/
+
+	int i;
+	int rank =0;
+	for(i=0;i< length;i++, rank++){
+		if(isprint(packet[i])){
+			printf("%c", (packet[i]));
+		}
+		else if(packet[i] == '\n'){
+			printf("%c", (packet[i]));
+			rank=0;
+		}
+		else if(packet[i] == '\r'){
+			rank=0;
+		}
+		else
+			printf(".");
+		if(rank%64==63)
+			printf("\n");
+	}
+	printf("\n");
 }
 void print_header_bootp(const u_char *packet){
 	char magic_cookie[4] = { 99, 130, 83, 99 };	
@@ -267,7 +275,7 @@ void print_header_bootp(const u_char *packet){
 						default:
 							break;
 					}
-				break;
+					break;
 				case TAG_PARM_REQUEST:
 					for(j=i+3;j<bootp->bp_vend[i+1]+i+2;j++){
 						switch(bootp->bp_vend[j]){
@@ -314,7 +322,7 @@ void print_header_bootp(const u_char *packet){
 								break;
 						}
 					}
-				break;
+					break;
 				case TAG_GATEWAY:
 					sprintf(ip,"       Gateway: %d.%d.%d.%d\n",bootp->bp_vend[i+2],bootp->bp_vend[i+3],bootp->bp_vend[i+4],bootp->bp_vend[i+5]);
 					strcat(dhcp_options,ip);
@@ -324,7 +332,7 @@ void print_header_bootp(const u_char *packet){
 					strcat(dhcp_options,ip);
 					break;
 				case TAG_DOMAINNAME:
-					strncpy(buffer,&bootp->bp_vend[i+2],bootp->bp_vend[i+1]);
+					strncpy(buffer,(const char *)&bootp->bp_vend[i+2],bootp->bp_vend[i+1]);
 					buffer[bootp->bp_vend[i+1]] = '\0';
 					sprintf(ip,"       Domain name: %s\n",buffer);
 					strcat(dhcp_options,ip);
@@ -343,7 +351,7 @@ void print_header_bootp(const u_char *packet){
 				case TAG_REQUESTED_IP:
 					sprintf(ip,"       Requested IP: %d.%d.%d.%d\n",bootp->bp_vend[i+2],bootp->bp_vend[i+3],bootp->bp_vend[i+4],bootp->bp_vend[i+5]);
 					strcat(dhcp_options,ip);
-					break;			
+					break;
 				case TAG_IP_LEASE:
 					sprintf(ip,"       Lease time: %u seconds\n",bootp->bp_vend[i+2]*256*256*256+bootp->bp_vend[i+3]*256*256+bootp->bp_vend[i+4]*256+bootp->bp_vend[i+5]);
 					strcat(dhcp_options,ip);
@@ -358,7 +366,9 @@ void print_header_bootp(const u_char *packet){
 			i+=2+bootp->bp_vend[i+1];
 		}
 	}	
-	printf("|----> BOOTP\n");
+
+	printf("|----> BOOTP Client IP: %s, Your IP: %s, Server IP: %s, Gateway IP: %s\n",inet_ntoa(bootp->bp_ciaddr),inet_ntoa(bootp->bp_yiaddr),inet_ntoa(bootp->bp_siaddr),inet_ntoa(bootp->bp_giaddr));
+
 	if(dhcp_type!=NULL){
 		printf("       DHCP %s\n",dhcp_type);
 		if(strcmp(dhcp_type,"DISCOVER")==0 || strcmp(dhcp_type,"REQUEST")==0){
@@ -400,7 +410,7 @@ void get_flags_dns(uint16_t flags_i, char** qr, char ** opcode, char ** flags){
 	}	
 
 	//flags
- 	char tmp[100]; 
+	char tmp[100]; 
 	strcpy(tmp,"");
 	if((flags_i & (0x400)) != 0){
 		strcat(tmp,"AA, ");
@@ -435,15 +445,29 @@ void print_header_dns(const u_char *packet){
 	char * opcode;
 	char * flags;
 	get_flags_dns(dns->flags,&qr,&opcode,&flags);
-	printf("|----> DNS %s (%s), Flags : [%s]\n",qr,opcode,flags);
+	if(vflag==1){
+		printf("|----> DNS %s (%s)\n",qr,opcode);
+	}
+	if(vflag==2){
+		printf("|----> DNS %s (%s), Flags: [%s]\n",qr,opcode,flags);
+	}
+	if(vflag==3){
+		printf("|----> DNS %s (%s), Flags: [%s]\n",qr,opcode,flags);
+	}	
 }
 
 void print_header_udp(const u_char *packet){
-	printf("|---> UDP ");
 	struct udphdr *udp;
 	udp = (struct udphdr*)packet;
-	printf("%d > %d\n",ntohs(udp->source),ntohs(udp->dest));
-
+	if(vflag==1){
+		printf("|---> UDP %d > %d\n",ntohs(udp->source),ntohs(udp->dest));
+	}
+	if(vflag==2){
+		printf("|---> UDP %d > %d, Length: %d\n",ntohs(udp->source),ntohs(udp->dest),ntohs(udp->len));
+	}
+	if(vflag==3){
+		printf("|---> UDP %d > %d, Length: %d, Checksum: 0x%x\n",ntohs(udp->source),ntohs(udp->dest),ntohs(udp->len),ntohs(udp->check));
+	}
 	switch(ntohs(udp->source)){
 		case BOOTPSERVERPORT:
 			print_header_bootp((packet+sizeof(struct udphdr)));
@@ -479,7 +503,16 @@ void print_header_ip(const u_char *packet){
 	int version = ip_header->ip_v;
 	inet_ntop(AF_INET,&(ip_header->ip_src),src,INET_ADDRSTRLEN);
 	inet_ntop(AF_INET,&(ip_header->ip_dst),dst,INET_ADDRSTRLEN);
-	printf("|--> IPv%d %s > %s, Length : %d, TTL : %d \n",version,src,dst,ip_header->ip_len,ip_header->ip_ttl);
+
+	if(vflag==1){
+		printf("|--> IPv%d %s > %s\n",version,src,dst);
+	}
+	if(vflag==2){
+		printf("|--> IPv%d %s > %s, Length: %d, ID: Ox%x\n",version,src,dst,ip_header->ip_len,ntohs(ip_header->ip_id));
+	}
+	if(vflag==3){
+		printf("|--> IPv%d %s > %s, Length: %d, ID: 0x%x, TTL : %d, Checksum: 0x%x \n",version,src,dst,ntohs(ip_header->ip_len),ntohs(ip_header->ip_id),ip_header->ip_ttl,ntohs(ip_header->ip_sum));
+	}
 
 	switch(ip_header->ip_p){
 		case 6:
@@ -499,38 +532,33 @@ void print_header_arp(const u_char *packet){
 	char * srcip = malloc(100*sizeof(char));
 	char * dstip = malloc(100*sizeof(char));
 	char * sha = malloc(100*sizeof(char));
-	int hl, pl;
-	hl = arp->ar_hln;
-	pl = arp->ar_pln;
-
 	u_char * addresses = (u_char *) arp + sizeof(struct arphdr);
+	
 	sprintf(sha,"%x:%x:%x:%x:%x:%x",addresses[0],addresses[1],addresses[2],addresses[3],addresses[4],addresses[5]);	
 	sprintf(dstip,"%d.%d.%d.%d",addresses[16],addresses[17],addresses[18],addresses[19]);	
 	sprintf(srcip,"%d.%d.%d.%d",addresses[6],addresses[7],addresses[8],addresses[9]);	
 
-
-	printf("|--> ");
 	switch(ntohs(arp->ar_op)){
 		case ARPOP_REQUEST:
-			printf("ARP request who has %s? Tell %s",dstip,srcip);
+			printf("|--> ARP request who has %s? Tell %s",dstip,srcip);
 			break;
 		case ARPOP_REPLY:
-			printf("ARP reply %s is at %s",srcip,sha);
+			printf("|--> ARP reply %s is at %s",srcip,sha);
 			break;
 		case ARPOP_RREQUEST:
-			printf("RARP request");
+			printf("|--> RARP request");
 			break;
 		case ARPOP_RREPLY:
-			printf("RARP reply");
+			printf("|--> RARP reply");
 			break;
 		case ARPOP_InREQUEST:
-			printf("InARP request");
+			printf("|--> InARP request");
 			break;
 		case ARPOP_InREPLY:
-			printf("InARP reply");
+			printf("|--> InARP reply");
 			break;
 		case ARPOP_NAK:
-			printf("ARP NAK");
+			printf("|--> ARP NAK");
 			break;
 		default:
 			break;
@@ -557,17 +585,17 @@ void got_packet(u_char *user, const struct pcap_pkthdr *phrd, const u_char *pack
 	ptr = ethernet->ether_dhost;
 	i = ETHER_ADDR_LEN;
 	do{
-	printf("%s%x",(i == ETHER_ADDR_LEN) ? " " : ":",*ptr++);
+		printf("%s%x",(i == ETHER_ADDR_LEN) ? " " : ":",*ptr++);
 	}while(--i>0);
 
 	ptr = ethernet->ether_shost;
 	i = ETHER_ADDR_LEN;
 	printf(" >");
 	do{
-	printf("%s%x",(i == ETHER_ADDR_LEN) ? " " : ":",*ptr++);
+		printf("%s%x",(i == ETHER_ADDR_LEN) ? " " : ":",*ptr++);
 	}while(--i>0);
 	printf("\n");
-	
+
 	switch(ntohs(ethernet->ether_type)){
 		case 0x0800:
 			print_header_ip((packet+sizeof(struct ether_header)));
@@ -584,10 +612,10 @@ void print_all_devices(){
 	char error_buffer[PCAP_ERRBUF_SIZE];
 	pcap_if_t *alldevs;
 	if (pcap_findalldevs(&alldevs, error_buffer) == -1){
-        fprintf(stderr,"Error in pcap_findalldevs: %s\n", error_buffer);
-        exit(1);
-    }
-    for(; alldevs != NULL; alldevs= alldevs->next){
-        printf("%s\n", alldevs->name);
-    }
+		fprintf(stderr,"Error in pcap_findalldevs: %s\n", error_buffer);
+		exit(1);
+	}
+	for(; alldevs != NULL; alldevs= alldevs->next){
+		printf("%s\n", alldevs->name);
+	}
 }
