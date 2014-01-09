@@ -104,19 +104,44 @@ int main(int argc, char *argv[]){
 }
 
 void print_header_telnet(const u_char *packet){
-	printf("|----> TELNET\n");
+	if(vflag==1){
+        printf("TELNET");
+    }
+    else{    
+        printf("|----> TELNET\n");
+    }
 }
 void print_header_http(const u_char *packet){
-	printf("|----> HTTP\n");
+	if(vflag==1){
+        printf("HTTP");
+    }
+    else{    
+        printf("|----> HTTP\n");
+    }
 }
 void print_header_https(const u_char *packet){
-	printf("|----> HTTPS\n");
+	if(vflag==1){
+        printf("HTTPS");
+    }
+    else{    
+        printf("|----> HTTPS\n");
+    }
 }
 void print_header_ftp(const u_char *packet){
-	printf("|----> FTP\n");
+    if(vflag==1){
+        printf("FTP");
+    }
+    else{    
+        printf("|----> FTP\n");
+    }
 }
 void print_header_smtp(const u_char *packet){
-	printf("|----> SMTP\n");
+    if(vflag==1){
+        printf("SMTP");
+    }
+    else{    
+        printf("|----> SMTP\n");
+    }
 }
 void get_flags_tcp(struct tcphdr *tcp, char **flags){
 	char str[100];
@@ -151,13 +176,13 @@ void print_header_tcp(const u_char *packet){
 	get_flags_tcp(tcp,&flags);
 
 	if(vflag==1){
-		printf("|---> TCP %d > %d\n",ntohs(tcp->source), ntohs(tcp->dest));
+		printf("TCP %d > %d | ",ntohs(tcp->source), ntohs(tcp->dest));
 	}
 	if(vflag==2){	
 		printf("|---> TCP %d > %d, Flags: [%s] \n",ntohs(tcp->source), ntohs(tcp->dest),flags);
 	}
 	if(vflag==3){
-		printf("|---> TCP %d > %d, Flags: [%s], Seq number: %d, Ack number: %d , Window size: %d, Checksum: 0x%x\n",ntohs(tcp->source), ntohs(tcp->dest),flags,ntohs(tcp->seq),ntohs(tcp->ack_seq),ntohs(tcp->window),ntohs(tcp->check));
+		printf("|---> TCP %d > %d, Flags: [%s], Seq number: %u, Ack number: %u , Window size: %d, Checksum: 0x%x\n",ntohs(tcp->source), ntohs(tcp->dest),flags,ntohl(tcp->seq),ntohl(tcp->ack_seq),ntohs(tcp->window),ntohs(tcp->check));
 	}
 
 	switch(ntohs(tcp->source)){
@@ -200,6 +225,12 @@ void print_header_tcp(const u_char *packet){
 					print_header_smtp(packet);
 					break;	
 				default:
+                    if(vflag==1){
+                        printf("Unknown %d > %d",ntohs(tcp->source),ntohs(tcp->dest));
+                    }
+                    else{
+                        printf("|----> Unknown %d > %d\n",ntohs(tcp->source),ntohs(tcp->dest));
+                    }
 					break;
 			}
 	}
@@ -367,17 +398,27 @@ void print_header_bootp(const u_char *packet){
 		}
 	}	
 
-	printf("|----> BOOTP Client IP: %s, Your IP: %s, Server IP: %s, Gateway IP: %s\n",inet_ntoa(bootp->bp_ciaddr),inet_ntoa(bootp->bp_yiaddr),inet_ntoa(bootp->bp_siaddr),inet_ntoa(bootp->bp_giaddr));
+    if(vflag==1){
+        printf("BOOTP");
+        if(dhcp_type!=NULL){
+            printf(" DHCP %s",dhcp_type);
+        }
+    }
+    else{
+        printf("|----> BOOTP Client IP: %s, Your IP: %s, Server IP: %s, Gateway IP: %s\n",inet_ntoa(bootp->bp_ciaddr),inet_ntoa(bootp->bp_yiaddr),inet_ntoa(bootp->bp_siaddr),inet_ntoa(bootp->bp_giaddr));
 
-	if(dhcp_type!=NULL){
-		printf("       DHCP %s\n",dhcp_type);
-		if(strcmp(dhcp_type,"DISCOVER")==0 || strcmp(dhcp_type,"REQUEST")==0){
-			printf("       Parameters: %s\n",dhcp_request);
-		}
-		if(strcmp(dhcp_type,"OFFER")==0 || strcmp(dhcp_type,"ACK")==0){
-			printf("%s",dhcp_options);		
-		}
-	}	
+        if(dhcp_type!=NULL){
+            printf("       DHCP %s\n",dhcp_type);
+            if(vflag==3){
+                if(strcmp(dhcp_type,"DISCOVER")==0 || strcmp(dhcp_type,"REQUEST")==0){
+                    printf("       Parameters: %s\n",dhcp_request);
+                }
+                if(strcmp(dhcp_type,"OFFER")==0 || strcmp(dhcp_type,"ACK")==0){
+                    printf("%s",dhcp_options);		
+                }
+            }
+        }	
+    }
 }
 void get_flags_dns(uint16_t flags_i, char** qr, char ** opcode, char ** flags){
 	// qr
@@ -446,7 +487,7 @@ void print_header_dns(const u_char *packet){
 	char * flags;
 	get_flags_dns(dns->flags,&qr,&opcode,&flags);
 	if(vflag==1){
-		printf("|----> DNS %s (%s)\n",qr,opcode);
+		printf("DNS %s (%s)",qr,opcode);
 	}
 	if(vflag==2){
 		printf("|----> DNS %s (%s), Flags: [%s]\n",qr,opcode,flags);
@@ -460,7 +501,7 @@ void print_header_udp(const u_char *packet){
 	struct udphdr *udp;
 	udp = (struct udphdr*)packet;
 	if(vflag==1){
-		printf("|---> UDP %d > %d\n",ntohs(udp->source),ntohs(udp->dest));
+		printf("UDP %d > %d | ",ntohs(udp->source),ntohs(udp->dest));
 	}
 	if(vflag==2){
 		printf("|---> UDP %d > %d, Length: %d\n",ntohs(udp->source),ntohs(udp->dest),ntohs(udp->len));
@@ -490,6 +531,12 @@ void print_header_udp(const u_char *packet){
 					print_header_dns((packet+sizeof(struct udphdr)));
 					break;	
 				default:
+                    if(vflag==1){
+                        printf("Unknown %d > %d",ntohs(udp->source),ntohs(udp->dest));
+                    }
+                    else{
+                        printf("|---> Unknown %d > %d\n",ntohs(udp->source),ntohs(udp->dest));
+                    }
 					break;
 			}
 	}
@@ -505,7 +552,7 @@ void print_header_ip(const u_char *packet){
 	inet_ntop(AF_INET,&(ip_header->ip_dst),dst,INET_ADDRSTRLEN);
 
 	if(vflag==1){
-		printf("|--> IPv%d %s > %s\n",version,src,dst);
+		printf("IPv%d %s > %s | ",version,src,dst);
 	}
 	if(vflag==2){
 		printf("|--> IPv%d %s > %s, Length: %d, ID: Ox%x\n",version,src,dst,ip_header->ip_len,ntohs(ip_header->ip_id));
@@ -534,31 +581,66 @@ void print_header_arp(const u_char *packet){
 	char * sha = malloc(100*sizeof(char));
 	u_char * addresses = (u_char *) arp + sizeof(struct arphdr);
 	
-	sprintf(sha,"%x:%x:%x:%x:%x:%x",addresses[0],addresses[1],addresses[2],addresses[3],addresses[4],addresses[5]);	
+	sprintf(sha,"%02x:%02x:%02x:%02x:%02x:%02x",addresses[0],addresses[1],addresses[2],addresses[3],addresses[4],addresses[5]);	
 	sprintf(dstip,"%d.%d.%d.%d",addresses[16],addresses[17],addresses[18],addresses[19]);	
 	sprintf(srcip,"%d.%d.%d.%d",addresses[6],addresses[7],addresses[8],addresses[9]);	
 
 	switch(ntohs(arp->ar_op)){
 		case ARPOP_REQUEST:
-			printf("|--> ARP request who has %s? Tell %s\n",dstip,srcip);
-			break;
+            if(vflag==1){
+			    printf("ARP request who has %s ? Tell %s",dstip,srcip);
+			}
+            else{
+                 printf("|--> ARP request who has %s ? Tell %s\n",dstip,srcip);
+            }
+            break;
 		case ARPOP_REPLY:
-			printf("|--> ARP reply %s is at %s\n",srcip,sha);
+		    if(vflag==1){
+			    printf("ARP reply %s is at %s",srcip,sha);			
+            }
+            else{
+                printf("|--> ARP reply %s is at %s\n",srcip,sha);
+            }
 			break;
 		case ARPOP_RREQUEST:
-			printf("|--> RARP request\n");
+            if(vflag==1){
+			    printf("RARP request");
+            }
+            else{ 
+		        printf("|--> RARP request\n");
+            }
 			break;
 		case ARPOP_RREPLY:
-			printf("|--> RARP reply\n");
+            if(vflag==1){
+			    printf("RARP reply");
+            }
+            else{
+			    printf("|--> RARP reply\n");
+            }
 			break;
 		case ARPOP_InREQUEST:
-			printf("|--> InARP request\n");
+            if(vflag==1){
+			    printf("InARP request");
+            }
+            else{
+			    printf("|--> InARP request\n");
+            }
 			break;
 		case ARPOP_InREPLY:
-			printf("|--> InARP reply\n");
+            if(vflag==1){
+			    printf("InARP reply");
+            }
+            else{
+			    printf("|--> InARP reply\n");
+            }
 			break;
 		case ARPOP_NAK:
-			printf("|--> ARP NAK\n");
+            if(vflag==1){
+			    printf("ARP NAK");
+            }
+            else{
+			    printf("|--> ARP NAK\n");
+            }
 			break;
 		default:
 			break;
@@ -574,22 +656,26 @@ char * get_human_time(struct timeval tv){
 	ptm = (struct tm*) localtime (&tv.tv_sec); 
 	strftime (time_string,40,"%H:%M:%S", ptm); 
 	milliseconds = tv.tv_usec; 
-	sprintf(human_string,"%s.%03ld\n", time_string, milliseconds);
+	sprintf(human_string,"%s.%06ld", time_string, milliseconds);
 	return human_string; 
 }
 
 void got_packet(u_char *user, const struct pcap_pkthdr *phrd, const u_char *packet){
-	printf("%s",get_human_time(phrd->ts));
-
 	struct ether_header *ethernet; 
 	ethernet = (struct ether_header*)packet;
 	char * ether_dhost = malloc(20*sizeof(char));
 	char * ether_shost = malloc(20*sizeof(char));
 
-	sprintf(ether_shost,"%x:%x:%x:%x:%x:%x",ethernet->ether_shost[0],ethernet->ether_shost[1],ethernet->ether_shost[2],ethernet->ether_shost[3],ethernet->ether_shost[4],ethernet->ether_shost[5]);	
-	sprintf(ether_dhost,"%x:%x:%x:%x:%x:%x",ethernet->ether_dhost[0],ethernet->ether_dhost[1],ethernet->ether_dhost[2],ethernet->ether_dhost[3],ethernet->ether_dhost[4],ethernet->ether_dhost[5]);	
+	sprintf(ether_shost,"%02x:%02x:%02x:%02x:%02x:%02x",ethernet->ether_shost[0],ethernet->ether_shost[1],ethernet->ether_shost[2],ethernet->ether_shost[3],ethernet->ether_shost[4],ethernet->ether_shost[5]);	
+	sprintf(ether_dhost,"%02x:%02x:%02x:%02x:%02x:%02x",ethernet->ether_dhost[0],ethernet->ether_dhost[1],ethernet->ether_dhost[2],ethernet->ether_dhost[3],ethernet->ether_dhost[4],ethernet->ether_dhost[5]);	
 	
-	printf("|-> Ethernet %s > %s\n",ether_shost,ether_dhost);
+	if(vflag==1){
+        printf("%s Ethernet %s > %s | ",get_human_time(phrd->ts),ether_shost,ether_dhost);    
+    }
+    else{
+	    printf("%s\n",get_human_time(phrd->ts));
+        printf("|-> Ethernet %s > %s\n",ether_shost,ether_dhost);
+    }
 
 	switch(ntohs(ethernet->ether_type)){
 		case 0x0800:
@@ -599,6 +685,12 @@ void got_packet(u_char *user, const struct pcap_pkthdr *phrd, const u_char *pack
 			print_header_arp((packet+sizeof(struct ether_header)));
 			break;
 		default:
+            if(vflag==1){
+                printf("Unknown, type: 0x%x",ntohs(ethernet->ether_type));
+            }
+            else{
+                printf("|--> Unknown, type: 0x%x \n",ntohs(ethernet->ether_type));
+            }
 			break; 	
 	}
 
