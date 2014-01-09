@@ -103,23 +103,35 @@ int main(int argc, char *argv[]){
 	return 0;
 }
 
-void print_header_telnet(const u_char *packet){
+void print_header_telnet(const u_char *packet,int length){
 	if(vflag==1){
         printf("TELNET");
     }
-    else{    
+    if(vflag==2){
+        printf("|----> TELNET\n"); 
+    }
+    if(vflag==3){
         printf("|----> TELNET\n");
+        struct tcphdr *tcp = (struct tcphdr*) packet;
+        print_ascii((u_char *)packet+(4*tcp->doff),length-4*tcp->doff-sizeof(struct ip));
+        printf("\n");
     }
 }
-void print_header_http(const u_char *packet){
+void print_header_http(const u_char *packet,int length){
 	if(vflag==1){
         printf("HTTP");
     }
-    else{    
+    if(vflag==2){
+        printf("|----> HTTP\n"); 
+    }
+    if(vflag==3){
         printf("|----> HTTP\n");
+        struct tcphdr *tcp = (struct tcphdr*) packet;
+        print_ascii((u_char *)packet+(4*tcp->doff),length-4*tcp->doff-sizeof(struct ip));
+        printf("\n");
     }
 }
-void print_header_https(const u_char *packet){
+void print_header_https(const u_char *packet,int length){
 	if(vflag==1){
         printf("HTTPS");
     }
@@ -127,26 +139,66 @@ void print_header_https(const u_char *packet){
         printf("|----> HTTPS\n");
     }
 }
-void print_header_ftp(const u_char *packet){
-    if(vflag==1){
+void print_header_ftp(const u_char *packet,int length){
+   	if(vflag==1){
         printf("FTP");
     }
-    else{    
+    if(vflag==2){
+        printf("|----> FTP\n"); 
+    }
+    if(vflag==3){
         printf("|----> FTP\n");
+        struct tcphdr *tcp = (struct tcphdr*) packet;
+        print_ascii((u_char *)packet+(4*tcp->doff),length-4*tcp->doff-sizeof(struct ip));
+        printf("\n");
     }
 }
-void print_header_smtp(const u_char *packet){
+void print_header_pop(const u_char *packet,int length){
+   	if(vflag==1){
+        printf("POP");
+    }
+    if(vflag==2){
+        printf("|----> POP\n"); 
+    }
+    if(vflag==3){
+        printf("|----> POP\n");
+        struct tcphdr *tcp = (struct tcphdr*) packet;
+        print_ascii((u_char *)packet+(4*tcp->doff),length-4*tcp->doff-sizeof(struct ip));
+        printf("\n");
+    }
+}
+void print_header_imap(const u_char *packet,int length){
+   	if(vflag==1){
+        printf("IMAP");
+    }
+    if(vflag==2){
+        printf("|----> IMAP\n"); 
+    }
+    if(vflag==3){
+        printf("|----> IMAP\n");
+        struct tcphdr *tcp = (struct tcphdr*) packet;
+        print_ascii((u_char *)packet+(4*tcp->doff),length-4*tcp->doff-sizeof(struct ip));
+        printf("\n");
+    }
+}
+void print_header_smtp(const u_char *packet,int length){
     if(vflag==1){
         printf("SMTP");
     }
-    else{    
+    if(vflag==2){
+        printf("|----> SMTP\n"); 
+    }
+    if(vflag==3){
         printf("|----> SMTP\n");
+        struct tcphdr *tcp = (struct tcphdr*) packet;
+        print_ascii((u_char *)packet+(4*tcp->doff),length-4*tcp->doff-sizeof(struct ip));
+        printf("\n");
     }
 }
 void get_flags_tcp(struct tcphdr *tcp, char **flags){
-	char str[100];
-	strcpy(str,"");
-	if(tcp->fin==1){
+	char *  str = malloc(100*sizeof(char));
+	str[0] = '\0';
+    if(tcp->fin==1){
 		strcat(str,"FIN, ");
 	}
 	if(tcp->syn==1){
@@ -169,7 +221,7 @@ void get_flags_tcp(struct tcphdr *tcp, char **flags){
 	}
 	*flags = str;
 }
-void print_header_tcp(const u_char *packet){
+void print_header_tcp(const u_char *packet,int length){
 	struct tcphdr *tcp;
 	tcp = (struct tcphdr*)packet;
 	char * flags;
@@ -187,43 +239,55 @@ void print_header_tcp(const u_char *packet){
 
 	switch(ntohs(tcp->source)){
 		case HTTPPORT:
-			print_header_http(packet);
+			print_header_http(packet,length);
 			break;
 		case HTTPSPORT:
-			print_header_https(packet);
+			print_header_https(packet,length);
 			break;
 		case FTPDATAPORT:
-			print_header_ftp(packet);
+			print_header_ftp(packet,length);
 			break;
 		case FTPCONTROLPORT:
-			print_header_ftp(packet);
+			print_header_ftp(packet,length);
 			break;
 		case TELNETPORT:
-			print_header_telnet(packet);
+			print_header_telnet(packet,length);
 			break;
 		case SMTPPORT:
-			print_header_smtp(packet);
-			break;	
-		default:
+			print_header_smtp(packet,length);
+			break;
+        case POPPORT:
+			print_header_pop(packet,length);
+			break;
+        case IMAPPORT:
+			print_header_imap(packet,length);
+			break;
+        default:
 			switch(ntohs(tcp->dest)){	
 				case HTTPPORT:
-					print_header_http(packet);
+					print_header_http(packet,length);
 					break;
 				case HTTPSPORT:
-					print_header_https(packet);
+					print_header_https(packet,length);
 					break;
 				case FTPDATAPORT:
-					print_header_ftp(packet);
+					print_header_ftp(packet,length);
 					break;
 				case FTPCONTROLPORT:
-					print_header_ftp(packet);
+					print_header_ftp(packet,length);
 					break;
 				case TELNETPORT:
-					print_header_telnet(packet);
+					print_header_telnet(packet,length);
 					break;
 				case SMTPPORT:
-					print_header_smtp(packet);
+					print_header_smtp(packet,length);
 					break;	
+                 case POPPORT:
+			        print_header_pop(packet,length);
+			        break;
+                 case IMAPPORT:
+			        print_header_imap(packet,length);
+			        break; 
 				default:
                     if(vflag==1){
                         printf("Unknown %d > %d",ntohs(tcp->source),ntohs(tcp->dest));
@@ -235,9 +299,9 @@ void print_header_tcp(const u_char *packet){
 			}
 	}
 }
-void printAscii(u_char *packet, int length){
+void print_ascii(u_char *packet, int length){
 	int i;
-	int rank =0;
+	int rank = 0;
 	for(i=0;i< length;i++, rank++){
 		if(isprint(packet[i])){
 			printf("%c", (packet[i]));
@@ -249,12 +313,13 @@ void printAscii(u_char *packet, int length){
 		else if(packet[i] == '\r'){
 			rank=0;
 		}
-		else
+		else{
 			printf(".");
-		if(rank%64==63)
+        }
+		if(rank%64==63){
 			printf("\n");
+        }
 	}
-	printf("\n");
 }
 void print_header_bootp(const u_char *packet){
 	char magic_cookie[4] = { 99, 130, 83, 99 };	
@@ -451,7 +516,7 @@ void get_flags_dns(uint16_t flags_i, char** qr, char ** opcode, char ** flags){
 	}	
 
 	//flags
-	char tmp[100]; 
+	char * tmp = malloc(100*sizeof(char)); 
 	strcpy(tmp,"");
 	if((flags_i & (0x400)) != 0){
 		strcat(tmp,"AA, ");
@@ -479,7 +544,7 @@ void get_flags_dns(uint16_t flags_i, char** qr, char ** opcode, char ** flags){
 	}
 	*flags = tmp;
 }
-void print_header_dns(const u_char *packet){
+void print_header_dns(const u_char *packet,int length){
 	struct dnshdr *dns;
 	dns = (struct dnshdr*) packet;
 	char * qr;
@@ -497,7 +562,7 @@ void print_header_dns(const u_char *packet){
 	}	
 }
 
-void print_header_udp(const u_char *packet){
+void print_header_udp(const u_char *packet,int length){
 	struct udphdr *udp;
 	udp = (struct udphdr*)packet;
 	if(vflag==1){
@@ -517,7 +582,7 @@ void print_header_udp(const u_char *packet){
 			print_header_bootp((packet+sizeof(struct udphdr)));
 			break;
 		case DNSPORT:
-			print_header_dns((packet+sizeof(struct udphdr)));
+			print_header_dns((packet+sizeof(struct udphdr)),length);
 			break;
 		default:
 			switch(ntohs(udp->dest)){
@@ -528,7 +593,7 @@ void print_header_udp(const u_char *packet){
 					print_header_bootp((packet+sizeof(struct udphdr)));
 					break;
 				case DNSPORT:
-					print_header_dns((packet+sizeof(struct udphdr)));
+					print_header_dns((packet+sizeof(struct udphdr)),length);
 					break;	
 				default:
                     if(vflag==1){
@@ -563,10 +628,10 @@ void print_header_ip(const u_char *packet){
 
 	switch(ip_header->ip_p){
 		case 6:
-			print_header_tcp((packet+sizeof(struct ip)));
+			print_header_tcp((packet+sizeof(struct ip)),ntohs(ip_header->ip_len));
 			break;
 		case 17:
-			print_header_udp((packet+sizeof(struct ip)));
+			print_header_udp((packet+sizeof(struct ip)),ntohs(ip_header->ip_len));
 			break;
 		default:
 			break; 
