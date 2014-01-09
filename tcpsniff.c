@@ -59,33 +59,33 @@ int main(int argc, char *argv[]){
 			print_all_devices();
 			exit(0);
 		}
-		
-		if(fflag!=NULL){ // find netmask, compile BPF and apply it
-			struct bpf_program fp;
-			bpf_u_int32 netmask;
-			bpf_u_int32 network;
-
-			if(pcap_lookupnet(iflag,&network,&netmask,error_buffer)<0){
-				fprintf(stderr,"Error in pcap_lookupnet: %s\n", error_buffer);
-				exit(1);	
-			}	
-			if((pcap_compile(capture_handle,&fp, fflag,0,netmask))<0){
-				char *prefix = "Error in pcap_compile";
-				pcap_perror(capture_handle, prefix);
-				exit(1);
-			}
-			if(pcap_setfilter(capture_handle,&fp)<0){
-				char *prefix = "Error in pcap_setfilter";
-				pcap_perror(capture_handle, prefix);
-				exit(1);
-			}	
-		}
 
 		printf("listening on %s, capture size %d bytes\n",iflag,CAPTURESIZE);
 	}
 	else{ // offline mode
 		if((capture_handle = pcap_open_offline(oflag,error_buffer))==NULL){
 			fprintf(stderr,"%s\n",error_buffer);
+			exit(1);
+		}	
+	}
+
+	if(fflag!=NULL){ // find netmask, compile BPF and apply it
+		struct bpf_program fp;
+		bpf_u_int32 netmask;
+		bpf_u_int32 network;
+
+		if(pcap_lookupnet(iflag,&network,&netmask,error_buffer)<0){
+			fprintf(stderr,"Error in pcap_lookupnet: %s\n", error_buffer);
+			exit(1);	
+		}	
+		if((pcap_compile(capture_handle,&fp, fflag,0,netmask))<0){
+			char *prefix = "Error in pcap_compile";
+			pcap_perror(capture_handle, prefix);
+			exit(1);
+		}
+		if(pcap_setfilter(capture_handle,&fp)<0){
+			char *prefix = "Error in pcap_setfilter";
+			pcap_perror(capture_handle, prefix);
 			exit(1);
 		}	
 	}
@@ -105,6 +105,7 @@ void print_header_telnet(const u_char *packet){
 }
 void print_header_http(const u_char *packet){
 	printf("|----> HTTP\n");
+	
 }
 void print_header_https(const u_char *packet){
 	printf("|----> HTTPS\n");
@@ -495,37 +496,26 @@ void print_header_ip(const u_char *packet){
 void print_header_arp(const u_char *packet){
 	struct arphdr *arp;
 	arp = (struct arphdr*) packet;
-	char * dstip;
-	u_char * srcip;
-	char dstip_r[INET_ADDRSTRLEN];
+	char * srcip = malloc(100*sizeof(char));
+	char * dstip = malloc(100*sizeof(char));
+	char * sha = malloc(100*sizeof(char));
 	int hl, pl;
 	hl = arp->ar_hln;
 	pl = arp->ar_pln;
-	
-	const char * tpa = (const char *) packet+sizeof(struct arphdr);
 
-	switch(pl){
-		case 4:
-			dstip = malloc(4*sizeof(u_char));
-			srcip = malloc(4*sizeof(u_char));
-			strncpy(dstip, tpa, pl);
-			break;
-		case 16:
-			dstip = malloc(16*sizeof(u_char));
-			srcip = malloc(16*sizeof(u_char));
-			break;
-		default:
-			break;
-	}	
+	u_char * addresses = (u_char *) arp + sizeof(struct arphdr);
+	sprintf(sha,"%x:%x:%x:%x:%x:%x",addresses[0],addresses[1],addresses[2],addresses[3],addresses[4],addresses[5]);	
+	sprintf(dstip,"%d.%d.%d.%d",addresses[16],addresses[17],addresses[18],addresses[19]);	
+	sprintf(srcip,"%d.%d.%d.%d",addresses[6],addresses[7],addresses[8],addresses[9]);	
 
-	inet_ntop(AF_INET,&(dstip),dstip_r,INET_ADDRSTRLEN);
+
 	printf("|--> ");
 	switch(ntohs(arp->ar_op)){
 		case ARPOP_REQUEST:
-			printf("ARP request who has %s",dstip_r);
+			printf("ARP request who has %s? Tell %s",dstip,srcip);
 			break;
 		case ARPOP_REPLY:
-			printf("ARP reply");
+			printf("ARP reply %s is at %s",srcip,sha);
 			break;
 		case ARPOP_RREQUEST:
 			printf("RARP request");
