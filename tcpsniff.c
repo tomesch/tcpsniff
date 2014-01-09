@@ -43,7 +43,7 @@ int main(int argc, char *argv[]){
 				exit(1);
 			}
 		}
-
+		
 		if((capture_handle = pcap_create(iflag, error_buffer))==NULL){
 			fprintf(stderr,"Error in pcap_create: %s\n", error_buffer);
 			exit(1);
@@ -92,6 +92,7 @@ int main(int argc, char *argv[]){
 		}	
 	}
 
+	// start receiving packets
 	if((pcap_loop(capture_handle, 0, (pcap_handler)got_packet, NULL))==-1){
 		char *prefix = "Error in pcap_loop";
 		pcap_perror(capture_handle, prefix);
@@ -156,7 +157,7 @@ void print_header_tcp(const u_char *packet){
 		printf("|---> TCP %d > %d, Flags: [%s] \n",ntohs(tcp->source), ntohs(tcp->dest),flags);
 	}
 	if(vflag==3){
-		printf("|---> TCP %d > %d, Flags: [%s], Seq number: %d, Ack number: %d ,Window size: %d, Checksum: 0x%x\n",ntohs(tcp->source), ntohs(tcp->dest),flags,ntohs(tcp->seq),ntohs(tcp->ack_seq),ntohs(tcp->window),ntohs(tcp->check));
+		printf("|---> TCP %d > %d, Flags: [%s], Seq number: %d, Ack number: %d , Window size: %d, Checksum: 0x%x\n",ntohs(tcp->source), ntohs(tcp->dest),flags,ntohs(tcp->seq),ntohs(tcp->ack_seq),ntohs(tcp->window),ntohs(tcp->check));
 	}
 
 	switch(ntohs(tcp->source)){
@@ -204,7 +205,6 @@ void print_header_tcp(const u_char *packet){
 	}
 }
 void printAscii(u_char *packet, int length){
-
 	int i;
 	int rank =0;
 	for(i=0;i< length;i++, rank++){
@@ -540,61 +540,56 @@ void print_header_arp(const u_char *packet){
 
 	switch(ntohs(arp->ar_op)){
 		case ARPOP_REQUEST:
-			printf("|--> ARP request who has %s? Tell %s",dstip,srcip);
+			printf("|--> ARP request who has %s? Tell %s\n",dstip,srcip);
 			break;
 		case ARPOP_REPLY:
-			printf("|--> ARP reply %s is at %s",srcip,sha);
+			printf("|--> ARP reply %s is at %s\n",srcip,sha);
 			break;
 		case ARPOP_RREQUEST:
-			printf("|--> RARP request");
+			printf("|--> RARP request\n");
 			break;
 		case ARPOP_RREPLY:
-			printf("|--> RARP reply");
+			printf("|--> RARP reply\n");
 			break;
 		case ARPOP_InREQUEST:
-			printf("|--> InARP request");
+			printf("|--> InARP request\n");
 			break;
 		case ARPOP_InREPLY:
-			printf("|--> InARP reply");
+			printf("|--> InARP reply\n");
 			break;
 		case ARPOP_NAK:
-			printf("|--> ARP NAK");
+			printf("|--> ARP NAK\n");
 			break;
 		default:
 			break;
 	}
-	printf("\n");
 }
 
-void got_packet(u_char *user, const struct pcap_pkthdr *phrd, const u_char *packet){
-	struct timeval tv = phrd->ts; 
+char * get_human_time(struct timeval tv){
 	struct tm* ptm; 
-	char time_string[40]; 
+	char * time_string = malloc(40*sizeof(char));
+	char * human_string = malloc(40*sizeof(char)); 
 	long milliseconds; 
 	gettimeofday (&tv, NULL); 
 	ptm = (struct tm*) localtime (&tv.tv_sec); 
-	strftime (time_string, sizeof (time_string), "%H:%M:%S", ptm); 
+	strftime (time_string,40,"%H:%M:%S", ptm); 
 	milliseconds = tv.tv_usec; 
-	printf("%s.%03ld\n", time_string, milliseconds); 
+	sprintf(human_string,"%s.%03ld\n", time_string, milliseconds);
+	return human_string; 
+}
+
+void got_packet(u_char *user, const struct pcap_pkthdr *phrd, const u_char *packet){
+	printf("%s",get_human_time(phrd->ts));
 
 	struct ether_header *ethernet; 
 	ethernet = (struct ether_header*)packet;
-	printf("|-> Ethernet ");
-	u_char *ptr;
-	int i;
-	ptr = ethernet->ether_dhost;
-	i = ETHER_ADDR_LEN;
-	do{
-		printf("%s%x",(i == ETHER_ADDR_LEN) ? " " : ":",*ptr++);
-	}while(--i>0);
+	char * ether_dhost = malloc(20*sizeof(char));
+	char * ether_shost = malloc(20*sizeof(char));
 
-	ptr = ethernet->ether_shost;
-	i = ETHER_ADDR_LEN;
-	printf(" >");
-	do{
-		printf("%s%x",(i == ETHER_ADDR_LEN) ? " " : ":",*ptr++);
-	}while(--i>0);
-	printf("\n");
+	sprintf(ether_shost,"%x:%x:%x:%x:%x:%x",ethernet->ether_shost[0],ethernet->ether_shost[1],ethernet->ether_shost[2],ethernet->ether_shost[3],ethernet->ether_shost[4],ethernet->ether_shost[5]);	
+	sprintf(ether_dhost,"%x:%x:%x:%x:%x:%x",ethernet->ether_dhost[0],ethernet->ether_dhost[1],ethernet->ether_dhost[2],ethernet->ether_dhost[3],ethernet->ether_dhost[4],ethernet->ether_dhost[5]);	
+	
+	printf("|-> Ethernet %s > %s\n",ether_shost,ether_dhost);
 
 	switch(ntohs(ethernet->ether_type)){
 		case 0x0800:
@@ -605,8 +600,9 @@ void got_packet(u_char *user, const struct pcap_pkthdr *phrd, const u_char *pack
 			break;
 		default:
 			break; 	
-	}	
-	printf("\n");
+	}
+
+	printf("\n");	
 }
 void print_all_devices(){
 	char error_buffer[PCAP_ERRBUF_SIZE];
