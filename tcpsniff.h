@@ -1,5 +1,6 @@
 #include <string.h>
 #include <stdio.h>
+#include <ctype.h>
 #include <stdlib.h>
 #include <pcap.h>
 #include <unistd.h>
@@ -10,6 +11,7 @@
 #include <netinet/tcp.h>
 #include <netinet/udp.h>
 #include "bootp.h"
+#include <arpa/inet.h>
 
 #define CAPTURESIZE 65535
 

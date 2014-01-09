@@ -194,19 +194,179 @@ void print_header_tcp(const u_char *packet){
 			}
 	}
 }
+void printAscii(u_char *packet, int length){
+    
+	/*int i;
+    int rank =0;
+    for(i=0;i< length;i++, rank++){
+        if(isprint(packet[i])){
+            printf("%c", (packet[i]));
+        }
+        else if(packet[i] == '\n'){
+            printf("%c", (packet[i]));
+            rank=0;
+        }
+        else if(packet[i] == '\r'){
+            rank=0;
+        }
+        else
+            printf(".");
+        if(rank%64==63)
+            printf("\n");
+    }
+    printf("\n");*/
+}
 void print_header_bootp(const u_char *packet){
-	char magic_cookie[4] = VM_RFC1048;	
-	printf("|----> BOOTP\n");
+	char magic_cookie[4] = { 99, 130, 83, 99 };	
 	struct bootp *bootp;
 	struct vend *vendor;
 	bootp = (struct bootp*) packet;
 	vendor = (struct vend*) bootp->bp_vend;
+	char * ip = malloc(100*sizeof(char));
+	char * buffer = malloc(100*sizeof(char));
+	char dhcp_type[10];
+	char dhcp_request[5000];
+	char dhcp_options[5000];
+	strcpy(dhcp_type,"");	
+	strcpy(dhcp_options,"");	
+	strcpy(dhcp_request,"");	
 
-	if(strncmp(vendor->v_magic,magic_cookie,4)==0){
-		// Vendor specific options
-		
-	}
-
+	if(strncmp((const char *)vendor->v_magic,(const char *)magic_cookie,4)==0){
+		// Vendor specific area
+		int i = 4;
+		int j;
+		while(bootp->bp_vend[i] != 255){
+			switch(bootp->bp_vend[i]){
+				case TAG_DHCP_MESSAGE:
+					switch(bootp->bp_vend[i+2]){
+						case DHCPREQUEST:
+							strcpy(dhcp_type,"REQUEST");
+							break;
+						case DHCPDISCOVER:
+							strcpy(dhcp_type,"DISCOVER");
+							break;
+						case DHCPOFFER:
+							strcpy(dhcp_type,"OFFER");
+							break;
+						case DHCPDECLINE:
+							strcpy(dhcp_type,"DECLINE");
+							break;
+						case DHCPACK:
+							strcpy(dhcp_type,"ACK");
+							break;
+						case DHCPNAK:
+							strcpy(dhcp_type,"NACK");
+							break;
+						case DHCPRELEASE:
+							strcpy(dhcp_type,"RELEASE");
+							break;
+						case DHCPINFORM:
+							strcpy(dhcp_type,"INFORM");
+							break;
+						default:
+							break;
+					}
+				break;
+				case TAG_PARM_REQUEST:
+					for(j=i+3;j<bootp->bp_vend[i+1]+i+2;j++){
+						switch(bootp->bp_vend[j]){
+							case TAG_GATEWAY:
+								strcat(dhcp_request,"router, ");
+								break;
+							case TAG_DOMAIN_SERVER:
+								strcat(dhcp_request,"dns, ");
+								break;
+							case TAG_DOMAINNAME:
+								strcat(dhcp_request,"domain name, ");
+								break;
+							case TAG_BROAD_ADDR:
+								strcat(dhcp_request,"broadcast address, ");
+								break;
+							case TAG_SUBNET_MASK:
+								strcat(dhcp_request,"subnet mask, ");
+								break;
+							case TAG_TIME_OFFSET:
+								strcat(dhcp_request,"time offset, ");
+								break;
+							case TAG_HOSTNAME:
+								strcat(dhcp_request,"hostname, ");
+								break;
+							case TAG_NETBIOS_NS:
+								strcat(dhcp_request,"netbios over TCP/IP name server, ");
+								break;
+							case TAG_NETBIOS_SCOPE:
+								strcat(dhcp_request,"netbios over TCP/IP scope, ");
+								break;
+							case TAG_REQUESTED_IP:
+								strcat(dhcp_request,"requested ip address, ");
+								break;
+							case TAG_IP_LEASE:
+								strcat(dhcp_request,"lease time, ");
+								break;
+							case TAG_SERVER_ID:
+								strcat(dhcp_request,"server id, ");
+								break;
+							case TAG_PARM_REQUEST:
+								strcat(dhcp_request,"PARAMETER_REQUEST_LIST, ");
+								break;
+							default:
+								break;
+						}
+					}
+				break;
+				case TAG_GATEWAY:
+					sprintf(ip,"       Gateway: %d.%d.%d.%d\n",bootp->bp_vend[i+2],bootp->bp_vend[i+3],bootp->bp_vend[i+4],bootp->bp_vend[i+5]);
+					strcat(dhcp_options,ip);
+					break;
+				case TAG_DOMAIN_SERVER:
+					sprintf(ip,"       DNS: %d.%d.%d.%d\n",bootp->bp_vend[i+2],bootp->bp_vend[i+3],bootp->bp_vend[i+4],bootp->bp_vend[i+5]);
+					strcat(dhcp_options,ip);
+					break;
+				case TAG_DOMAINNAME:
+					strncpy(buffer,&bootp->bp_vend[i+2],bootp->bp_vend[i+1]);
+					buffer[bootp->bp_vend[i+1]] = '\0';
+					sprintf(ip,"       Domain name: %s\n",buffer);
+					strcat(dhcp_options,ip);
+					break;
+				case TAG_BROAD_ADDR:
+					strcat(dhcp_options,ip);
+					break;
+				case TAG_SUBNET_MASK:
+					sprintf(ip,"       Subnet mask: %d.%d.%d.%d\n",bootp->bp_vend[i+2],bootp->bp_vend[i+3],bootp->bp_vend[i+4],bootp->bp_vend[i+5]);
+					strcat(dhcp_options,ip);
+					break;
+				case TAG_NETBIOS_NS:
+					sprintf(ip,"       Netbios NS: %d.%d.%d.%d\n",bootp->bp_vend[i+2],bootp->bp_vend[i+3],bootp->bp_vend[i+4],bootp->bp_vend[i+5]);
+					strcat(dhcp_options,ip);
+					break;
+				case TAG_REQUESTED_IP:
+					sprintf(ip,"       Requested IP: %d.%d.%d.%d\n",bootp->bp_vend[i+2],bootp->bp_vend[i+3],bootp->bp_vend[i+4],bootp->bp_vend[i+5]);
+					strcat(dhcp_options,ip);
+					break;			
+				case TAG_IP_LEASE:
+					sprintf(ip,"       Lease time: %u seconds\n",bootp->bp_vend[i+2]*256*256*256+bootp->bp_vend[i+3]*256*256+bootp->bp_vend[i+4]*256+bootp->bp_vend[i+5]);
+					strcat(dhcp_options,ip);
+					break;
+				case TAG_SERVER_ID:
+					sprintf(ip,"       DHCP Server: %d.%d.%d.%d\n",bootp->bp_vend[i+2],bootp->bp_vend[i+3],bootp->bp_vend[i+4],bootp->bp_vend[i+5]);
+					strcat(dhcp_options,ip);
+					break;
+				default:
+					break;  
+			}
+			i+=2+bootp->bp_vend[i+1];
+		}
+	}	
+	printf("|----> BOOTP\n");
+	if(dhcp_type!=NULL){
+		printf("       DHCP %s\n",dhcp_type);
+		if(strcmp(dhcp_type,"DISCOVER")==0 || strcmp(dhcp_type,"REQUEST")==0){
+			printf("       Parameters: %s\n",dhcp_request);
+		}
+		if(strcmp(dhcp_type,"OFFER")==0 || strcmp(dhcp_type,"ACK")==0){
+			printf("%s",dhcp_options);		
+		}
+	}	
 }
 void get_flags_dns(uint16_t flags_i, char** qr, char ** opcode, char ** flags){
 	// qr
@@ -335,14 +495,14 @@ void print_header_ip(const u_char *packet){
 void print_header_arp(const u_char *packet){
 	struct arphdr *arp;
 	arp = (struct arphdr*) packet;
-	u_char * dstip;
+	char * dstip;
 	u_char * srcip;
 	char dstip_r[INET_ADDRSTRLEN];
 	int hl, pl;
 	hl = arp->ar_hln;
 	pl = arp->ar_pln;
 	
-	const u_char * tpa = (const u_char *) packet+sizeof(struct arphdr);
+	const char * tpa = (const char *) packet+sizeof(struct arphdr);
 
 	switch(pl){
 		case 4:
@@ -437,7 +597,7 @@ void print_all_devices(){
         fprintf(stderr,"Error in pcap_findalldevs: %s\n", error_buffer);
         exit(1);
     }
-    for(alldevs; alldevs != NULL; alldevs= alldevs->next){
+    for(; alldevs != NULL; alldevs= alldevs->next){
         printf("%s\n", alldevs->name);
     }
 }
